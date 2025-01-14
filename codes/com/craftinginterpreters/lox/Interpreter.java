@@ -14,6 +14,8 @@ class Interpreter implements Expr.Visitor<Object>,Stmt.Visitor<Void> {
     }
     */
 
+    private Environment environment = new Environment();
+
     void interpret(List<Stmt> statements) {
         try {
             for (Stmt statement : statements) {
@@ -31,18 +33,23 @@ class Interpreter implements Expr.Visitor<Object>,Stmt.Visitor<Void> {
 
     @Override
     public Object visitUnaryExpr(Expr.Unary expr) {
-      Object right = evaluate(expr.right);
+        Object right = evaluate(expr.right);
   
-      switch (expr.operator.type) {
-        case BANG:
-            return !isTruthy(right);
-        case MINUS:
-            checkNumberOperand(expr.operator, right);
-            return -(double)right;
-      }
+        switch (expr.operator.type) {
+            case BANG:
+                return !isTruthy(right);
+            case MINUS:
+                checkNumberOperand(expr.operator, right);
+                return -(double)right;
+        }
   
-      // Unreachable.
-      return null;
+        // Unreachable.
+        return null;
+    }
+
+    @Override
+    public Object visitVariableExpr(Expr.Variable expr) {
+        return environment.get(expr.name);
     }
 
     private void checkNumberOperand(Token operator, Object operand) {
@@ -108,49 +115,66 @@ class Interpreter implements Expr.Visitor<Object>,Stmt.Visitor<Void> {
         System.out.println(stringify(value));
         return null;
     }
+
+    @Override
+    public Void visitVarStmt(Stmt.Var stmt) {
+        Object value = null;
+        if (stmt.initializer != null) {
+            value = evaluate(stmt.initializer);
+        }
   
+        environment.define(stmt.name.lexeme, value);
+        return null;
+    }
+
+    @Override
+    public Object visitAssignExpr(Expr.Assign expr) {
+        Object value = evaluate(expr.value);
+        environment.assign(expr.name, value);
+        return value;
+    }
 
     @Override
     public Object visitBinaryExpr(Expr.Binary expr) {
-      Object left = evaluate(expr.left);
-      Object right = evaluate(expr.right); 
+        Object left = evaluate(expr.left);
+        Object right = evaluate(expr.right); 
   
-      switch (expr.operator.type) {
-        case BANG_EQUAL: return !isEqual(left, right);
-        case EQUAL_EQUAL: return isEqual(left, right);
-        case GREATER:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left > (double)right;
-        case GREATER_EQUAL:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left >= (double)right;
-        case LESS:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left < (double)right;
-        case LESS_EQUAL:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left <= (double)right;
-        case MINUS:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left - (double)right;
-        case PLUS:
-            if (left instanceof Double && right instanceof Double) {
-                return (double)left + (double)right;
-            } 
+        switch (expr.operator.type) {
+            case BANG_EQUAL: return !isEqual(left, right);
+            case EQUAL_EQUAL: return isEqual(left, right);
+            case GREATER:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left > (double)right;
+            case GREATER_EQUAL:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left >= (double)right;
+            case LESS:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left < (double)right;
+            case LESS_EQUAL:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left <= (double)right;
+            case MINUS:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left - (double)right;
+            case PLUS:
+                if (left instanceof Double && right instanceof Double) {
+                    return (double)left + (double)right;
+                } 
   
-            if (left instanceof String && right instanceof String) {
-                return (String)left + (String)right;
-            }
+                if (left instanceof String && right instanceof String) {
+                    return (String)left + (String)right;
+                }
   
-            throw new RuntimeError(expr.operator,
-            "Operands must be two numbers or two strings.");
-        case SLASH:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left / (double)right;
-        case STAR:
-            checkNumberOperands(expr.operator, left, right);
-            return (double)left * (double)right;
-      }
+                throw new RuntimeError(expr.operator,
+                "Operands must be two numbers or two strings.");
+            case SLASH:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left / (double)right;
+            case STAR:
+                checkNumberOperands(expr.operator, left, right);
+                return (double)left * (double)right;
+        }
   
       // Unreachable.
       return null;
